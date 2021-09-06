@@ -1,0 +1,51 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy container app to Azure Web App - kswebapp
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Log in to registry
+      uses: docker/login-action@v1
+      with:
+        registry: https://mcr.microsoft.com/
+        username: ${{ secrets.AzureAppService_ContainerUsername_48338bffe6194fc792c9e27e86efbdd4 }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_9944338196a04a61a78fc42609f4c619 }}
+
+    - name: Build and push container image to registry
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: mcr.microsoft.com/${{ secrets.AzureAppService_ContainerUsername_48338bffe6194fc792c9e27e86efbdd4 }}/appsvc/staticsite:${{ github.sha }}
+        file: ./Dockerfile
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+
+    steps:
+    - name: Deploy to Azure Web App
+      id: deploy-to-webapp
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: 'kswebapp'
+        slot-name: 'production'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_52e5f7d212db4cef9218a15949d2806e }}
+        images: 'mcr.microsoft.com/${{ secrets.AzureAppService_ContainerUsername_48338bffe6194fc792c9e27e86efbdd4 }}/appsvc/staticsite:${{ github.sha }}'
